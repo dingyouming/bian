@@ -33,14 +33,25 @@ async function getMarginBalance() {
   }
 
   const data = await response.json();
-  const totalAssetOfBtc = parseFloat(data.totalAssetOfBtc);
   
-  // 获取BTC/USDT的当前价格
-  const btcPriceResponse = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-  const btcPriceData = await btcPriceResponse.json();
-  const btcPrice = parseFloat(btcPriceData.price);
+  // 检查 data.assets 是否存在且为数组
+  if (!Array.isArray(data.assets)) {
+    throw new Error('资产数据格式不正确');
+  }
 
-  return totalAssetOfBtc * btcPrice;
+  // 获取所有资产的总价值
+  let totalValueInUSDT = 0;
+  for (const asset of data.assets) {
+    const assetAmount = parseFloat(asset.free) + parseFloat(asset.locked);
+    if (assetAmount > 0) {
+      const priceResponse = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset.asset}USDT`);
+      const priceData = await priceResponse.json();
+      const price = parseFloat(priceData.price);
+      totalValueInUSDT += assetAmount * price;
+    }
+  }
+
+  return totalValueInUSDT;  // 返回以USDT计的总资产价值
 }
 
 async function getApiKey() {
